@@ -1,18 +1,26 @@
 import express from 'express';
 import Trip from '../models/Trip.js';
 import protect from '../middleware/authMiddleware.js';
+import optionalAuth from '../middleware/optionalAuth.js';
 import cloudinary from '../config/cloudinary.js';
 
 const router = express.Router();
 
-
-// GET /api/trips/explore — all public trips
-router.get('/explore', async (req, res) => {
+// GET /api/trips/explore — all public trips (from public profiles only)
+router.get('/explore', optionalAuth, async (req, res) => {
   try {
     const trips = await Trip.find({ isPublic: true })
-      .populate('author', 'name avatar')
+      .populate('author', 'name avatar isPublic')
       .sort({ createdAt: -1 });
-    res.json(trips);
+
+    // Hide trips belonging to authors with a private profile,
+    // unless the viewer IS that author.
+    const visibleTrips = trips.filter((trip) => {
+      const isOwner = req.user && req.user._id.toString() === trip.author._id.toString();
+      return trip.author.isPublic || isOwner;
+    });
+
+    res.json(visibleTrips);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -86,8 +94,15 @@ router.put('/:id/like', protect, async (req, res) => {
 // POST /api/trips/:id/clone
 router.post('/:id/clone', protect, async (req, res) => {
   try {
-    const original = await Trip.findById(req.params.id);
+    const original = await Trip.findById(req.params.id).populate('author', 'isPublic');
     if (!original) return res.status(404).json({ message: 'Trip not found' });
+
+    const isOwner = original.author._id.toString() === req.user._id.toString();
+    const canClone = isOwner || (original.isPublic && original.author.isPublic);
+
+    if (!canClone) {
+      return res.status(403).json({ message: 'This trip cannot be cloned' });
+    }
 
     const cloned = await Trip.create({
       title: original.title + ' (Clone)',
@@ -128,6 +143,7 @@ router.put('/:id/save', protect, async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
 // POST /api/trips/:id/cover
 router.post('/:id/cover', protect, async (req, res) => {
   try {

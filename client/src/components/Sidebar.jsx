@@ -19,6 +19,7 @@ function Sidebar() {
     { to: "/explore", label: "Explore", icon: "🌍" },
     { to: "/feed", label: "Feed", icon: "📸" },
     { to: "/profile", label: "Profile", icon: "👤" },
+    { to: "/settings", label: "Settings", icon: "⚙️" },
   ];
 
   return (

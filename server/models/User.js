@@ -24,6 +24,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  isPublic: {
+    type: Boolean,
+    default: true, // true = anyone can view profile + trips, false = followers/owner only
+  },
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
 }, { timestamps: true });
